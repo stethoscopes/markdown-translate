@@ -91,22 +91,58 @@
   gap: 0.5rem;
 }
 
-.file-list li:hover {
+.folder-item {
+  padding: 0.4rem 0.5rem !important;
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+  font-weight: 500;
+}
+
+.folder-item:hover {
   background-color: #21262d;
 }
 
-.file-list li.active {
+.folder-name {
+  flex: 1;
+}
+
+.folder-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.expand-icon {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: #8b949e;
+  margin-left: auto;
+}
+
+.file-item {
+  padding: 0.4rem 0.5rem !important;
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-item:hover {
+  background-color: #21262d;
+}
+
+.file-item.active {
   background-color: #1f6feb;
   color: white;
 }
 
-.file-list li.disabled {
+.file-item.disabled {
   opacity: 0.5;
   cursor: not-allowed;
   color: #6e7681;
 }
 
-.file-list li.disabled:hover {
+.file-item.disabled:hover {
   background-color: transparent;
 }
 

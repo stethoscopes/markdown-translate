@@ -11,6 +11,56 @@ function App() {
   const [filePath, setFilePath] = useState('')
   const [fileList, setFileList] = useState([])
   const [allFiles, setAllFiles] = useState([])
+  const [fileTree, setFileTree] = useState(null)
+  const [expandedFolders, setExpandedFolders] = useState(new Set())
+
+  // Build file tree structure from flat file list
+  const buildFileTree = (files) => {
+    const root = { name: '', children: {}, files: [], isFolder: true }
+
+    files.forEach(file => {
+      const path = file.webkitRelativePath || file.name
+      const parts = path.split('/')
+      let current = root
+
+      // Navigate/create folder structure
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i]
+        if (!current.children[part]) {
+          current.children[part] = {
+            name: part,
+            path: parts.slice(0, i + 1).join('/'),
+            children: {},
+            files: [],
+            isFolder: true
+          }
+        }
+        current = current.children[part]
+      }
+
+      // Add file to current folder
+      current.files.push({
+        name: parts[parts.length - 1],
+        path: path,
+        file: file,
+        isFolder: false
+      })
+    })
+
+    return root
+  }
+
+  const toggleFolder = (folderPath) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(folderPath)) {
+        newSet.delete(folderPath)
+      } else {
+        newSet.add(folderPath)
+      }
+      return newSet
+    })
+  }
 
   const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files)
@@ -19,6 +69,7 @@ function App() {
     if (mdFiles.length > 0) {
       setFileList(mdFiles)
       setAllFiles([])
+      setFileTree(null)
       // Load the first file by default
       loadFile(mdFiles[0])
     }
@@ -36,6 +87,21 @@ function App() {
       })
 
       setAllFiles(sortedFiles)
+
+      // Build tree structure
+      const tree = buildFileTree(sortedFiles)
+      setFileTree(tree)
+
+      // Expand all folders by default
+      const allFolders = new Set()
+      const collectFolders = (node) => {
+        Object.values(node.children).forEach(child => {
+          allFolders.add(child.path)
+          collectFolders(child)
+        })
+      }
+      collectFolders(tree)
+      setExpandedFolders(allFolders)
 
       // Find markdown files and load the first one
       const mdFiles = sortedFiles.filter(file =>
@@ -76,6 +142,58 @@ function App() {
     event.preventDefault()
   }
 
+  // Recursive component to render file tree
+  const FileTreeNode = ({ node, depth = 0 }) => {
+    if (!node) return null
+
+    const folders = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name))
+    const files = node.files.sort((a, b) => a.name.localeCompare(b.name))
+
+    return (
+      <>
+        {folders.map((folder) => {
+          const isExpanded = expandedFolders.has(folder.path)
+          return (
+            <div key={folder.path}>
+              <li
+                className="folder-item"
+                style={{ paddingLeft: `${depth * 1.5}rem` }}
+                onClick={() => toggleFolder(folder.path)}
+              >
+                <span className="folder-icon">
+                  {isExpanded ? '📂' : '📁'}
+                </span>
+                <span className="folder-name">{folder.name}</span>
+                <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+              </li>
+              {isExpanded && (
+                <FileTreeNode node={folder} depth={depth + 1} />
+              )}
+            </div>
+          )
+        })}
+        {files.map((fileItem) => {
+          const isMd = isMarkdownFile(fileItem.name)
+          const isActive = fileItem.path === filePath
+          return (
+            <li
+              key={fileItem.path}
+              className={`file-item ${isActive ? 'active' : ''} ${!isMd ? 'disabled' : ''}`}
+              style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
+              onClick={() => isMd && loadFile(fileItem.file)}
+              title={fileItem.path}
+            >
+              <span className="file-icon">
+                {isMd ? '📄' : '📃'}
+              </span>
+              <span className="file-path">{fileItem.name}</span>
+            </li>
+          )
+        })}
+      </>
+    )
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -111,30 +229,12 @@ function App() {
           <aside className="sidebar">
             <h3>파일 목록</h3>
             <ul className="file-list">
-              {allFiles.length > 0
-                ? allFiles.map((file, index) => {
-                    const relativePath = file.webkitRelativePath || file.name
-                    const isMd = isMarkdownFile(file.name)
-                    const isActive = relativePath === filePath
-
-                    return (
-                      <li
-                        key={index}
-                        className={`${isActive ? 'active' : ''} ${!isMd ? 'disabled' : ''}`}
-                        onClick={() => isMd && loadFile(file)}
-                        title={relativePath}
-                      >
-                        <span className="file-icon">
-                          {isMd ? '📄' : '📃'}
-                        </span>
-                        <span className="file-path">{relativePath}</span>
-                      </li>
-                    )
-                  })
+              {fileTree
+                ? <FileTreeNode node={fileTree} depth={0} />
                 : fileList.map((file, index) => (
                     <li
                       key={index}
-                      className={file.name === fileName ? 'active' : ''}
+                      className={`file-item ${file.name === fileName ? 'active' : ''}`}
                       onClick={() => loadFile(file)}
                     >
                       <span className="file-icon">📄</span>
