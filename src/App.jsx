@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import './App.css'
 import 'highlight.js/styles/github-dark.css'
+import { generateHash, getCachedTranslation, saveCachedTranslation } from './utils/translationCache'
 
 function App() {
   const [markdownContent, setMarkdownContent] = useState('')
@@ -16,6 +17,7 @@ function App() {
   const [translatedContent, setTranslatedContent] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
   const [showTranslation, setShowTranslation] = useState(false)
+  const [isCached, setIsCached] = useState(false)
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -85,14 +87,33 @@ function App() {
   const translateToKorean = async () => {
     if (!markdownContent) return
 
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-    if (!apiKey || apiKey === 'your_openai_api_key_here') {
-      alert('OpenAI API 키가 설정되지 않았습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정해주세요.')
-      return
-    }
-
     setIsTranslating(true)
+    setIsCached(false)
+
     try {
+      // Generate hash of current content
+      const contentHash = await generateHash(markdownContent)
+
+      // Check cache first
+      const cachedTranslation = await getCachedTranslation(filePath || fileName, contentHash)
+
+      if (cachedTranslation) {
+        // Use cached translation
+        setTranslatedContent(cachedTranslation)
+        setShowTranslation(true)
+        setIsCached(true)
+        setIsTranslating(false)
+        return
+      }
+
+      // Cache miss - proceed with API call
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      if (!apiKey || apiKey === 'your_openai_api_key_here') {
+        alert('OpenAI API 키가 설정되지 않았습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정해주세요.')
+        setIsTranslating(false)
+        return
+      }
+
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -121,8 +142,18 @@ function App() {
 
       const data = await response.json()
       const translated = data.choices[0].message.content
+
+      // Save to cache
+      await saveCachedTranslation(
+        filePath || fileName,
+        contentHash,
+        markdownContent,
+        translated
+      )
+
       setTranslatedContent(translated)
       setShowTranslation(true)
+      setIsCached(false)
     } catch (error) {
       console.error('번역 오류:', error)
       alert(`번역 중 오류가 발생했습니다: ${error.message}`)
@@ -193,6 +224,7 @@ function App() {
     // Reset translation state when loading new file
     setTranslatedContent('')
     setShowTranslation(false)
+    setIsCached(false)
   }
 
   const isMarkdownFile = (filename) => {
@@ -385,6 +417,7 @@ function App() {
                 <div className="file-name">
                   {filePath || fileName}
                   {showTranslation && <span className="translation-badge">번역됨</span>}
+                  {isCached && <span className="cache-badge">💾 캐시됨</span>}
                 </div>
                 <div className="translation-controls">
                   {translatedContent && (

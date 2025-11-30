@@ -311,6 +311,15 @@
   font-weight: 500;
 }
 
+.cache-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #1f6feb;
+  color: white;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
 .translation-controls {
   display: flex;
   gap: 0.5rem;
