@@ -18,6 +18,11 @@ function App() {
   const [isTranslating, setIsTranslating] = useState(false)
   const [showTranslation, setShowTranslation] = useState(false)
   const [isCached, setIsCached] = useState(false)
+  const [showBatchModal, setShowBatchModal] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState(new Set())
+  const [cachedFiles, setCachedFiles] = useState(new Set())
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
+  const [isBatchTranslating, setIsBatchTranslating] = useState(false)
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -167,6 +172,148 @@ function App() {
       translateToKorean()
     } else {
       setShowTranslation(!showTranslation)
+    }
+  }
+
+  // Batch translation functions
+  const openBatchTranslateModal = async () => {
+    if (!fileTree) return
+
+    // Get all markdown files
+    const mdFiles = fileList.filter(file =>
+      file.name.endsWith('.md') || file.name.endsWith('.markdown')
+    )
+
+    if (mdFiles.length === 0) {
+      alert('번역할 마크다운 파일이 없습니다.')
+      return
+    }
+
+    // Check cache status for all files
+    const cached = new Set()
+    const selected = new Set()
+
+    for (const file of mdFiles) {
+      const text = await file.text()
+      const hash = await generateHash(text)
+      const filePath = file.webkitRelativePath || file.name
+      const cachedTranslation = await getCachedTranslation(filePath, hash)
+
+      if (cachedTranslation) {
+        cached.add(filePath)
+      } else {
+        selected.add(filePath)
+      }
+    }
+
+    setCachedFiles(cached)
+    setSelectedFiles(selected)
+    setShowBatchModal(true)
+  }
+
+  const toggleFileSelection = (filePath) => {
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(filePath)) {
+        newSet.delete(filePath)
+      } else {
+        newSet.add(filePath)
+      }
+      return newSet
+    })
+  }
+
+  const selectAllFiles = () => {
+    const allNonCached = fileList
+      .map(f => f.webkitRelativePath || f.name)
+      .filter(path => !cachedFiles.has(path))
+    setSelectedFiles(new Set(allNonCached))
+  }
+
+  const deselectAllFiles = () => {
+    setSelectedFiles(new Set())
+  }
+
+  const executeBatchTranslation = async () => {
+    if (selectedFiles.size === 0) {
+      alert('번역할 파일을 선택해주세요.')
+      return
+    }
+
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+    if (!apiKey || apiKey === 'your_openai_api_key_here') {
+      alert('OpenAI API 키가 설정되지 않았습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정해주세요.')
+      return
+    }
+
+    setIsBatchTranslating(true)
+    setBatchProgress({ current: 0, total: selectedFiles.size })
+
+    const filesToTranslate = fileList.filter(file =>
+      selectedFiles.has(file.webkitRelativePath || file.name)
+    )
+
+    let completed = 0
+
+    try {
+      // Translate files in parallel (limit to 3 concurrent requests)
+      const batchSize = 3
+      for (let i = 0; i < filesToTranslate.length; i += batchSize) {
+        const batch = filesToTranslate.slice(i, i + batchSize)
+
+        await Promise.all(batch.map(async (file) => {
+          try {
+            const text = await file.text()
+            const hash = await generateHash(text)
+            const filePath = file.webkitRelativePath || file.name
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
+              body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'You are a professional translator. Translate the given Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.'
+                  },
+                  {
+                    role: 'user',
+                    content: text
+                  }
+                ],
+                temperature: 0.3
+              })
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              const translated = data.choices[0].message.content
+              await saveCachedTranslation(filePath, hash, text, translated)
+              console.log(`✅ Translated and cached: ${filePath}`)
+            } else {
+              console.error(`❌ Translation failed: ${filePath}`)
+            }
+          } catch (error) {
+            console.error(`❌ Error translating ${file.name}:`, error)
+          } finally {
+            completed++
+            setBatchProgress({ current: completed, total: selectedFiles.size })
+          }
+        }))
+      }
+
+      alert(`일괄 번역 완료! ${completed}개 파일이 번역되었습니다.`)
+      setShowBatchModal(false)
+    } catch (error) {
+      console.error('일괄 번역 오류:', error)
+      alert(`일괄 번역 중 오류가 발생했습니다: ${error.message}`)
+    } finally {
+      setIsBatchTranslating(false)
+      setBatchProgress({ current: 0, total: 0 })
     }
   }
 
@@ -356,31 +503,42 @@ function App() {
           <aside className="sidebar">
             <div className="sidebar-header">
               <h3>파일 목록</h3>
-              {fileTree && (
-                <div className="tree-controls">
+              <div className="sidebar-controls">
+                {fileTree && (
+                  <div className="tree-controls">
+                    <button
+                      className="tree-control-btn"
+                      onClick={expandAll}
+                      title="Expand All"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 9.5L4 6h8L8 9.5z"/>
+                        <path d="M8 13.5L4 10h8l-4 3.5z"/>
+                        <path d="M8 5.5L4 2h8L8 5.5z"/>
+                      </svg>
+                    </button>
+                    <button
+                      className="tree-control-btn"
+                      onClick={collapseAll}
+                      title="Collapse All"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M12 8L8 5v6l4-3z"/>
+                        <path d="M6 8L2 5v6l4-3z"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {fileTree && fileList.length > 0 && (
                   <button
-                    className="tree-control-btn"
-                    onClick={expandAll}
-                    title="Expand All"
+                    className="batch-translate-btn"
+                    onClick={openBatchTranslateModal}
+                    title="일괄 번역"
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M8 9.5L4 6h8L8 9.5z"/>
-                      <path d="M8 13.5L4 10h8l-4 3.5z"/>
-                      <path d="M8 5.5L4 2h8L8 5.5z"/>
-                    </svg>
+                    🌐 일괄 번역
                   </button>
-                  <button
-                    className="tree-control-btn"
-                    onClick={collapseAll}
-                    title="Collapse All"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M12 8L8 5v6l4-3z"/>
-                      <path d="M6 8L2 5v6l4-3z"/>
-                    </svg>
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
             <ul className="file-list">
               {fileTree
@@ -460,6 +618,93 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Batch Translation Modal */}
+      {showBatchModal && (
+        <div className="modal-overlay" onClick={() => !isBatchTranslating && setShowBatchModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>일괄 번역</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowBatchModal(false)}
+                disabled={isBatchTranslating}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-controls">
+              <button onClick={selectAllFiles} disabled={isBatchTranslating}>
+                전체 선택
+              </button>
+              <button onClick={deselectAllFiles} disabled={isBatchTranslating}>
+                전체 해제
+              </button>
+              <div className="file-count">
+                선택됨: {selectedFiles.size} / {fileList.length}
+              </div>
+            </div>
+
+            <div className="modal-file-list">
+              {fileList.map((file) => {
+                const filePath = file.webkitRelativePath || file.name
+                const isCached = cachedFiles.has(filePath)
+                const isSelected = selectedFiles.has(filePath)
+                const isMd = file.name.endsWith('.md') || file.name.endsWith('.markdown')
+
+                if (!isMd) return null
+
+                return (
+                  <div key={filePath} className="modal-file-item">
+                    <label className={isCached ? 'disabled' : ''}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={isCached || isBatchTranslating}
+                        onChange={() => toggleFileSelection(filePath)}
+                      />
+                      <span className="file-path-text">{filePath}</span>
+                      {isCached && <span className="cached-label">(캐시됨)</span>}
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+
+            {isBatchTranslating && (
+              <div className="modal-progress">
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="progress-text">
+                  {batchProgress.current} / {batchProgress.total} 완료
+                </div>
+              </div>
+            )}
+
+            <div className="modal-footer">
+              <button
+                className="modal-cancel"
+                onClick={() => setShowBatchModal(false)}
+                disabled={isBatchTranslating}
+              >
+                취소
+              </button>
+              <button
+                className="modal-submit"
+                onClick={executeBatchTranslation}
+                disabled={isBatchTranslating || selectedFiles.size === 0}
+              >
+                {isBatchTranslating ? '번역 중...' : `번역 시작 (${selectedFiles.size}개)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
