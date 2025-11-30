@@ -72,17 +72,32 @@ function App() {
     })
   }
 
+  // Check if a folder or its subfolders contain markdown files
+  const hasMdFiles = (node) => {
+    // Check if this node has markdown files
+    const hasMdInFiles = node.files.some(file => isMarkdownFile(file.name))
+    if (hasMdInFiles) return true
+
+    // Check if any subfolder has markdown files
+    return Object.values(node.children).some(child => hasMdFiles(child))
+  }
+
   const expandAll = () => {
     if (!fileTree) return
-    const allFolders = new Set()
-    const collectFolders = (node) => {
+    const foldersWithMd = new Set()
+
+    const collectFoldersWithMd = (node) => {
       Object.values(node.children).forEach(child => {
-        allFolders.add(child.path)
-        collectFolders(child)
+        // Only add folder if it or its subfolders contain md files
+        if (hasMdFiles(child)) {
+          foldersWithMd.add(child.path)
+          collectFoldersWithMd(child)
+        }
       })
     }
-    collectFolders(fileTree)
-    setExpandedFolders(allFolders)
+
+    collectFoldersWithMd(fileTree)
+    setExpandedFolders(foldersWithMd)
   }
 
   const collapseAll = () => {
