@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -26,6 +26,10 @@ function App() {
   const [hideEmptyFolders, setHideEmptyFolders] = useState(false)
   const [translatingFiles, setTranslatingFiles] = useState(new Set())
   const [translatedFiles, setTranslatedFiles] = useState(new Set())
+
+  // Refs for file inputs
+  const folderInputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -105,6 +109,15 @@ function App() {
 
   const collapseAll = () => {
     setExpandedFolders(new Set())
+  }
+
+  const refreshFileList = () => {
+    // Trigger folder input to re-select files
+    if (fileTree && folderInputRef.current) {
+      folderInputRef.current.click()
+    } else if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
   }
 
   const translateToKorean = async () => {
@@ -617,6 +630,7 @@ function App() {
             📁 폴더 선택
           </label>
           <input
+            ref={folderInputRef}
             id="folder-input"
             type="file"
             webkitdirectory="true"
@@ -628,6 +642,7 @@ function App() {
             📄 파일 선택
           </label>
           <input
+            ref={fileInputRef}
             id="file-input"
             type="file"
             accept=".md,.markdown"
@@ -644,6 +659,18 @@ function App() {
             <div className="sidebar-header">
               <h3>파일 목록</h3>
               <div className="sidebar-controls">
+                {(fileList.length > 0 || allFiles.length > 0) && (
+                  <button
+                    className="tree-control-btn refresh-btn"
+                    onClick={refreshFileList}
+                    title="새로고침"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    </svg>
+                  </button>
+                )}
                 {fileTree && (
                   <div className="tree-controls">
                     <button
