@@ -700,9 +700,35 @@ function App() {
             <div className="markdown-container">
               <div className="file-header">
                 <div className="file-name">
-                  {filePath || fileName}
-                  {showTranslation && <span className="translation-badge">번역됨</span>}
-                  {isCached && <span className="cache-badge">💾 캐시됨</span>}
+                  {(() => {
+                    const fullPath = filePath || fileName
+                    const lastSlashIndex = fullPath.lastIndexOf('/')
+
+                    if (lastSlashIndex > 0) {
+                      // 경로가 있는 경우: 경로와 파일명 분리
+                      const directory = fullPath.substring(0, lastSlashIndex)
+                      const filename = fullPath.substring(lastSlashIndex + 1)
+                      return (
+                        <>
+                          <div className="file-path-dir">{directory}</div>
+                          <div className="file-path-name">
+                            {filename}
+                            {showTranslation && <span className="translation-badge">번역됨</span>}
+                            {isCached && <span className="cache-badge">💾 캐시됨</span>}
+                          </div>
+                        </>
+                      )
+                    } else {
+                      // 경로가 없는 경우: 파일명만 표시
+                      return (
+                        <div className="file-path-name">
+                          {fullPath}
+                          {showTranslation && <span className="translation-badge">번역됨</span>}
+                          {isCached && <span className="cache-badge">💾 캐시됨</span>}
+                        </div>
+                      )
+                    }
+                  })()}
                 </div>
                 <div className="translation-controls">
                   {translatedContent && (
