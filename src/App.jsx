@@ -411,11 +411,24 @@ function App() {
     const text = await file.text()
     setMarkdownContent(text)
     setFileName(file.name)
-    setFilePath(file.webkitRelativePath || file.name)
-    // Reset translation state when loading new file
-    setTranslatedContent('')
-    setShowTranslation(false)
-    setIsCached(false)
+    const path = file.webkitRelativePath || file.name
+    setFilePath(path)
+
+    // Check if translation exists in cache
+    const contentHash = await generateHash(text)
+    const cachedTranslation = await getCachedTranslation(path, contentHash)
+
+    if (cachedTranslation) {
+      // If cached translation exists, show it automatically
+      setTranslatedContent(cachedTranslation)
+      setShowTranslation(true)
+      setIsCached(true)
+    } else {
+      // Reset translation state when no cache found
+      setTranslatedContent('')
+      setShowTranslation(false)
+      setIsCached(false)
+    }
   }
 
   const isMarkdownFile = (filename) => {
