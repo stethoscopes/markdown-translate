@@ -62,6 +62,23 @@ function App() {
     })
   }
 
+  const expandAll = () => {
+    if (!fileTree) return
+    const allFolders = new Set()
+    const collectFolders = (node) => {
+      Object.values(node.children).forEach(child => {
+        allFolders.add(child.path)
+        collectFolders(child)
+      })
+    }
+    collectFolders(fileTree)
+    setExpandedFolders(allFolders)
+  }
+
+  const collapseAll = () => {
+    setExpandedFolders(new Set())
+  }
+
   const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files)
     const mdFiles = files.filter(file => file.name.endsWith('.md'))
@@ -92,16 +109,8 @@ function App() {
       const tree = buildFileTree(sortedFiles)
       setFileTree(tree)
 
-      // Expand all folders by default
-      const allFolders = new Set()
-      const collectFolders = (node) => {
-        Object.values(node.children).forEach(child => {
-          allFolders.add(child.path)
-          collectFolders(child)
-        })
-      }
-      collectFolders(tree)
-      setExpandedFolders(allFolders)
+      // Collapse all folders by default
+      setExpandedFolders(new Set())
 
       // Find markdown files and load the first one
       const mdFiles = sortedFiles.filter(file =>
@@ -250,7 +259,34 @@ function App() {
       <div className="container">
         {(fileList.length > 0 || allFiles.length > 0) && (
           <aside className="sidebar">
-            <h3>파일 목록</h3>
+            <div className="sidebar-header">
+              <h3>파일 목록</h3>
+              {fileTree && (
+                <div className="tree-controls">
+                  <button
+                    className="tree-control-btn"
+                    onClick={expandAll}
+                    title="Expand All"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 9.5L4 6h8L8 9.5z"/>
+                      <path d="M8 13.5L4 10h8l-4 3.5z"/>
+                      <path d="M8 5.5L4 2h8L8 5.5z"/>
+                    </svg>
+                  </button>
+                  <button
+                    className="tree-control-btn"
+                    onClick={collapseAll}
+                    title="Collapse All"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M12 8L8 5v6l4-3z"/>
+                      <path d="M6 8L2 5v6l4-3z"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
             <ul className="file-list">
               {fileTree
                 ? <FileTreeNode node={fileTree} depth={0} />
