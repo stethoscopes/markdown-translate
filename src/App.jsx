@@ -13,6 +13,9 @@ function App() {
   const [allFiles, setAllFiles] = useState([])
   const [fileTree, setFileTree] = useState(null)
   const [expandedFolders, setExpandedFolders] = useState(new Set())
+  const [translatedContent, setTranslatedContent] = useState('')
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [showTranslation, setShowTranslation] = useState(false)
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -79,6 +82,63 @@ function App() {
     setExpandedFolders(new Set())
   }
 
+  const translateToKorean = async () => {
+    if (!markdownContent) return
+
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+    if (!apiKey || apiKey === 'your_openai_api_key_here') {
+      alert('OpenAI API 키가 설정되지 않았습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정해주세요.')
+      return
+    }
+
+    setIsTranslating(true)
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional translator. Translate the given Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.'
+            },
+            {
+              role: 'user',
+              content: markdownContent
+            }
+          ],
+          temperature: 0.3
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const translated = data.choices[0].message.content
+      setTranslatedContent(translated)
+      setShowTranslation(true)
+    } catch (error) {
+      console.error('번역 오류:', error)
+      alert(`번역 중 오류가 발생했습니다: ${error.message}`)
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const toggleTranslation = () => {
+    if (!translatedContent) {
+      translateToKorean()
+    } else {
+      setShowTranslation(!showTranslation)
+    }
+  }
+
   const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files)
     const mdFiles = files.filter(file => file.name.endsWith('.md'))
@@ -130,6 +190,9 @@ function App() {
     setMarkdownContent(text)
     setFileName(file.name)
     setFilePath(file.webkitRelativePath || file.name)
+    // Reset translation state when loading new file
+    setTranslatedContent('')
+    setShowTranslation(false)
   }
 
   const isMarkdownFile = (filename) => {
@@ -318,15 +381,46 @@ function App() {
             </div>
           ) : (
             <div className="markdown-container">
-              <div className="file-name">
-                {filePath || fileName}
+              <div className="file-header">
+                <div className="file-name">
+                  {filePath || fileName}
+                  {showTranslation && <span className="translation-badge">번역됨</span>}
+                </div>
+                <div className="translation-controls">
+                  {translatedContent && (
+                    <button
+                      className="translation-toggle-btn"
+                      onClick={() => setShowTranslation(!showTranslation)}
+                      title={showTranslation ? "원문 보기" : "번역 보기"}
+                    >
+                      {showTranslation ? '📄 원문' : '🌐 번역'}
+                    </button>
+                  )}
+                  <button
+                    className="translate-btn"
+                    onClick={translateToKorean}
+                    disabled={isTranslating}
+                    title="한글로 번역"
+                  >
+                    {isTranslating ? (
+                      <>
+                        <span className="spinner"></span>
+                        번역 중...
+                      </>
+                    ) : (
+                      <>
+                        🌐 번역
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="markdown-content">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeHighlight]}
                 >
-                  {markdownContent}
+                  {showTranslation ? translatedContent : markdownContent}
                 </ReactMarkdown>
               </div>
             </div>

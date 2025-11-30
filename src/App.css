@@ -282,13 +282,99 @@
   margin: 0 auto;
 }
 
-.file-name {
-  font-size: 1.5rem;
-  font-weight: 600;
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #30363d;
+  gap: 1rem;
+}
+
+.file-name {
+  font-size: 1.5rem;
+  font-weight: 600;
   color: #58a6ff;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.translation-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #238636;
+  color: white;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.translation-controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.translate-btn,
+.translation-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #238636;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.translate-btn:hover:not(:disabled),
+.translation-toggle-btn:hover {
+  background-color: #2ea043;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.translate-btn:active:not(:disabled),
+.translation-toggle-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.translate-btn:disabled {
+  background-color: #484f58;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.translation-toggle-btn {
+  background-color: #1f6feb;
+}
+
+.translation-toggle-btn:hover {
+  background-color: #388bfd;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .markdown-content {
