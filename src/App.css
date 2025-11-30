@@ -29,7 +29,8 @@
 }
 
 .file-input-container {
-  position: relative;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .file-input {
@@ -58,7 +59,7 @@
 }
 
 .sidebar {
-  width: 250px;
+  width: 300px;
   background-color: #161b22;
   border-right: 1px solid #30363d;
   padding: 1rem;
@@ -85,6 +86,9 @@
   font-size: 0.875rem;
   transition: background-color 0.2s;
   word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .file-list li:hover {
@@ -94,6 +98,28 @@
 .file-list li.active {
   background-color: #1f6feb;
   color: white;
+}
+
+.file-list li.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #6e7681;
+}
+
+.file-list li.disabled:hover {
+  background-color: transparent;
+}
+
+.file-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.file-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content {
