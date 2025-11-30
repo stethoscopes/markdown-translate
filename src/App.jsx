@@ -143,7 +143,7 @@ function App() {
   }
 
   // Recursive component to render file tree
-  const FileTreeNode = ({ node, depth = 0 }) => {
+  const FileTreeNode = ({ node, depth = 0, isLast = false }) => {
     if (!node) return null
 
     const folders = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name))
@@ -151,15 +151,25 @@ function App() {
 
     return (
       <>
-        {folders.map((folder) => {
+        {folders.map((folder, index) => {
           const isExpanded = expandedFolders.has(folder.path)
+          const isFolderLast = index === folders.length - 1 && files.length === 0
           return (
-            <div key={folder.path}>
+            <div key={folder.path} className="tree-node">
               <li
                 className="folder-item"
+                data-depth={depth}
                 style={{ paddingLeft: `${depth * 1.5}rem` }}
                 onClick={() => toggleFolder(folder.path)}
               >
+                <span className="tree-indent">
+                  {depth > 0 && (
+                    <>
+                      <span className="tree-line"></span>
+                      <span className="tree-corner"></span>
+                    </>
+                  )}
+                </span>
                 <span className="folder-icon">
                   {isExpanded ? '📂' : '📁'}
                 </span>
@@ -167,27 +177,40 @@ function App() {
                 <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
               </li>
               {isExpanded && (
-                <FileTreeNode node={folder} depth={depth + 1} />
+                <div className="tree-children">
+                  <FileTreeNode node={folder} depth={depth + 1} isLast={isFolderLast} />
+                </div>
               )}
             </div>
           )
         })}
-        {files.map((fileItem) => {
+        {files.map((fileItem, index) => {
           const isMd = isMarkdownFile(fileItem.name)
           const isActive = fileItem.path === filePath
+          const isFileLast = index === files.length - 1
           return (
-            <li
-              key={fileItem.path}
-              className={`file-item ${isActive ? 'active' : ''} ${!isMd ? 'disabled' : ''}`}
-              style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
-              onClick={() => isMd && loadFile(fileItem.file)}
-              title={fileItem.path}
-            >
-              <span className="file-icon">
-                {isMd ? '📄' : '📃'}
-              </span>
-              <span className="file-path">{fileItem.name}</span>
-            </li>
+            <div key={fileItem.path} className="tree-node">
+              <li
+                className={`file-item ${isActive ? 'active' : ''} ${!isMd ? 'disabled' : ''}`}
+                data-depth={depth}
+                style={{ paddingLeft: `${depth * 1.5}rem` }}
+                onClick={() => isMd && loadFile(fileItem.file)}
+                title={fileItem.path}
+              >
+                <span className="tree-indent">
+                  {depth > 0 && (
+                    <>
+                      <span className="tree-line"></span>
+                      <span className="tree-corner"></span>
+                    </>
+                  )}
+                </span>
+                <span className="file-icon">
+                  {isMd ? '📄' : '📃'}
+                </span>
+                <span className="file-path">{fileItem.name}</span>
+              </li>
+            </div>
           )
         })}
       </>
