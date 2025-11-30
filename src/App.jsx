@@ -393,6 +393,79 @@ function App() {
     event.preventDefault()
   }
 
+  // Recursive component to render file tree in modal
+  const ModalFileTreeNode = ({ node, depth = 0 }) => {
+    if (!node) return null
+
+    const folders = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name))
+    const files = node.files.sort((a, b) => a.name.localeCompare(b.name))
+
+    return (
+      <>
+        {folders.map((folder) => (
+          <div key={folder.path} className="modal-tree-node">
+            <div
+              className="modal-folder-item"
+              style={{ paddingLeft: `${depth * 1.5}rem` }}
+            >
+              <span className="modal-tree-indent">
+                {depth > 0 && (
+                  <>
+                    <span className="modal-tree-line"></span>
+                    <span className="modal-tree-corner"></span>
+                  </>
+                )}
+              </span>
+              <span className="folder-icon">📂</span>
+              <span className="folder-name">{folder.name}</span>
+            </div>
+            <div className="modal-tree-children">
+              <ModalFileTreeNode node={folder} depth={depth + 1} />
+            </div>
+          </div>
+        ))}
+        {files.map((fileItem) => {
+          const isMd = isMarkdownFile(fileItem.name)
+          const isCached = cachedFiles.has(fileItem.path)
+          const isSelected = selectedFiles.has(fileItem.path)
+
+          if (!isMd) return null
+
+          return (
+            <div key={fileItem.path} className="modal-tree-node">
+              <div
+                className="modal-file-item-tree"
+                style={{ paddingLeft: `${depth * 1.5}rem` }}
+              >
+                <label className={isCached ? 'disabled' : ''}>
+                  <span className="modal-tree-indent">
+                    {depth > 0 && (
+                      <>
+                        <span className="modal-tree-line"></span>
+                        <span className="modal-tree-corner"></span>
+                      </>
+                    )}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={isCached || isBatchTranslating}
+                    onChange={() => toggleFileSelection(fileItem.path)}
+                  />
+                  <span className="file-icon">
+                    {isMd ? '📄' : '📃'}
+                  </span>
+                  <span className="file-path-text">{fileItem.name}</span>
+                  {isCached && <span className="cached-label">(캐시됨)</span>}
+                </label>
+              </div>
+            </div>
+          )
+        })}
+      </>
+    )
+  }
+
   // Recursive component to render file tree
   const FileTreeNode = ({ node, depth = 0, isLast = false }) => {
     if (!node) return null
@@ -647,29 +720,33 @@ function App() {
             </div>
 
             <div className="modal-file-list">
-              {fileList.map((file) => {
-                const filePath = file.webkitRelativePath || file.name
-                const isCached = cachedFiles.has(filePath)
-                const isSelected = selectedFiles.has(filePath)
-                const isMd = file.name.endsWith('.md') || file.name.endsWith('.markdown')
+              {fileTree ? (
+                <ModalFileTreeNode node={fileTree} depth={0} />
+              ) : (
+                fileList.map((file) => {
+                  const filePath = file.webkitRelativePath || file.name
+                  const isCached = cachedFiles.has(filePath)
+                  const isSelected = selectedFiles.has(filePath)
+                  const isMd = file.name.endsWith('.md') || file.name.endsWith('.markdown')
 
-                if (!isMd) return null
+                  if (!isMd) return null
 
-                return (
-                  <div key={filePath} className="modal-file-item">
-                    <label className={isCached ? 'disabled' : ''}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={isCached || isBatchTranslating}
-                        onChange={() => toggleFileSelection(filePath)}
-                      />
-                      <span className="file-path-text">{filePath}</span>
-                      {isCached && <span className="cached-label">(캐시됨)</span>}
-                    </label>
-                  </div>
-                )
-              })}
+                  return (
+                    <div key={filePath} className="modal-file-item">
+                      <label className={isCached ? 'disabled' : ''}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isCached || isBatchTranslating}
+                          onChange={() => toggleFileSelection(filePath)}
+                        />
+                        <span className="file-path-text">{filePath}</span>
+                        {isCached && <span className="cached-label">(캐시됨)</span>}
+                      </label>
+                    </div>
+                  )
+                })
+              )}
             </div>
 
             {isBatchTranslating && (
