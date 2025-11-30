@@ -23,6 +23,7 @@ function App() {
   const [cachedFiles, setCachedFiles] = useState(new Set())
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
   const [isBatchTranslating, setIsBatchTranslating] = useState(false)
+  const [hideEmptyFolders, setHideEmptyFolders] = useState(false)
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -409,10 +410,16 @@ function App() {
   }
 
   // Recursive component to render file tree in modal
-  const ModalFileTreeNode = ({ node, depth = 0 }) => {
+  const ModalFileTreeNode = ({ node, depth = 0, hideEmpty = false }) => {
     if (!node) return null
 
-    const folders = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name))
+    let folders = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name))
+
+    // Filter out folders without markdown files if hideEmpty is true
+    if (hideEmpty) {
+      folders = folders.filter(folder => hasMdFiles(folder))
+    }
+
     const files = node.files.sort((a, b) => a.name.localeCompare(b.name))
 
     return (
@@ -435,7 +442,7 @@ function App() {
               <span className="folder-name">{folder.name}</span>
             </div>
             <div className="modal-tree-children">
-              <ModalFileTreeNode node={folder} depth={depth + 1} />
+              <ModalFileTreeNode node={folder} depth={depth + 1} hideEmpty={hideEmpty} />
             </div>
           </div>
         ))}
@@ -729,6 +736,9 @@ function App() {
               <button onClick={deselectAllFiles} disabled={isBatchTranslating}>
                 전체 해제
               </button>
+              <button onClick={() => setHideEmptyFolders(!hideEmptyFolders)} disabled={isBatchTranslating}>
+                {hideEmptyFolders ? '빈 폴더 보기' : '빈 폴더 숨기기'}
+              </button>
               <div className="file-count">
                 선택됨: {selectedFiles.size} / {fileList.length}
               </div>
@@ -736,7 +746,7 @@ function App() {
 
             <div className="modal-file-list">
               {fileTree ? (
-                <ModalFileTreeNode node={fileTree} depth={0} />
+                <ModalFileTreeNode node={fileTree} depth={0} hideEmpty={hideEmptyFolders} />
               ) : (
                 fileList.map((file) => {
                   const filePath = file.webkitRelativePath || file.name
