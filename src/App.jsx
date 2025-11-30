@@ -24,6 +24,8 @@ function App() {
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
   const [isBatchTranslating, setIsBatchTranslating] = useState(false)
   const [hideEmptyFolders, setHideEmptyFolders] = useState(false)
+  const [translatingFiles, setTranslatingFiles] = useState(new Set())
+  const [translatedFiles, setTranslatedFiles] = useState(new Set())
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -224,6 +226,8 @@ function App() {
 
     setCachedFiles(cached)
     setSelectedFiles(selected)
+    setTranslatingFiles(new Set())
+    setTranslatedFiles(new Set())
     setShowBatchModal(true)
   }
 
@@ -278,10 +282,14 @@ function App() {
         const batch = filesToTranslate.slice(i, i + batchSize)
 
         await Promise.all(batch.map(async (file) => {
+          const filePath = file.webkitRelativePath || file.name
+
           try {
+            // Mark as translating
+            setTranslatingFiles(prev => new Set([...prev, filePath]))
+
             const text = await file.text()
             const hash = await generateHash(text)
-            const filePath = file.webkitRelativePath || file.name
 
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST',
@@ -310,11 +318,31 @@ function App() {
               const translated = data.choices[0].message.content
               await saveCachedTranslation(filePath, hash, text, translated)
               console.log(`✅ Translated and cached: ${filePath}`)
+
+              // Mark as completed
+              setTranslatingFiles(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(filePath)
+                return newSet
+              })
+              setTranslatedFiles(prev => new Set([...prev, filePath]))
             } else {
               console.error(`❌ Translation failed: ${filePath}`)
+              // Remove from translating on failure
+              setTranslatingFiles(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(filePath)
+                return newSet
+              })
             }
           } catch (error) {
             console.error(`❌ Error translating ${file.name}:`, error)
+            // Remove from translating on error
+            setTranslatingFiles(prev => {
+              const newSet = new Set(prev)
+              newSet.delete(filePath)
+              return newSet
+            })
           } finally {
             completed++
             setBatchProgress({ current: completed, total: selectedFiles.size })
@@ -410,7 +438,7 @@ function App() {
   }
 
   // Recursive component to render file tree in modal
-  const ModalFileTreeNode = ({ node, depth = 0, hideEmpty = false }) => {
+  const ModalFileTreeNode = ({ node, depth = 0, hideEmpty = false, translatingSet = new Set(), translatedSet = new Set() }) => {
     if (!node) return null
 
     let folders = Object.values(node.children).sort((a, b) => a.name.localeCompare(b.name))
@@ -442,7 +470,7 @@ function App() {
               <span className="folder-name">{folder.name}</span>
             </div>
             <div className="modal-tree-children">
-              <ModalFileTreeNode node={folder} depth={depth + 1} hideEmpty={hideEmpty} />
+              <ModalFileTreeNode node={folder} depth={depth + 1} hideEmpty={hideEmpty} translatingSet={translatingSet} translatedSet={translatedSet} />
             </div>
           </div>
         ))}
@@ -450,6 +478,8 @@ function App() {
           const isMd = isMarkdownFile(fileItem.name)
           const isCached = cachedFiles.has(fileItem.path)
           const isSelected = selectedFiles.has(fileItem.path)
+          const isTranslating = translatingSet.has(fileItem.path)
+          const isTranslated = translatedSet.has(fileItem.path)
 
           if (!isMd) return null
 
@@ -479,6 +509,8 @@ function App() {
                   </span>
                   <span className="file-path-text">{fileItem.name}</span>
                   {isCached && <span className="cached-label">(캐시됨)</span>}
+                  {isTranslating && <span className="translating-label">번역중...</span>}
+                  {isTranslated && <span className="translated-label">✓ 완료</span>}
                 </label>
               </div>
             </div>
@@ -746,13 +778,15 @@ function App() {
 
             <div className="modal-file-list">
               {fileTree ? (
-                <ModalFileTreeNode node={fileTree} depth={0} hideEmpty={hideEmptyFolders} />
+                <ModalFileTreeNode node={fileTree} depth={0} hideEmpty={hideEmptyFolders} translatingSet={translatingFiles} translatedSet={translatedFiles} />
               ) : (
                 fileList.map((file) => {
                   const filePath = file.webkitRelativePath || file.name
                   const isCached = cachedFiles.has(filePath)
                   const isSelected = selectedFiles.has(filePath)
                   const isMd = file.name.endsWith('.md') || file.name.endsWith('.markdown')
+                  const isTranslating = translatingFiles.has(filePath)
+                  const isTranslated = translatedFiles.has(filePath)
 
                   if (!isMd) return null
 
@@ -767,6 +801,8 @@ function App() {
                         />
                         <span className="file-path-text">{filePath}</span>
                         {isCached && <span className="cached-label">(캐시됨)</span>}
+                        {isTranslating && <span className="translating-label">번역중...</span>}
+                        {isTranslated && <span className="translated-label">✓ 완료</span>}
                       </label>
                     </div>
                   )

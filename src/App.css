@@ -805,6 +805,30 @@
   font-weight: 500;
 }
 
+.translating-label {
+  font-size: 0.75rem;
+  color: #f0883e;
+  font-weight: 500;
+  margin-left: 0.5rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.translated-label {
+  font-size: 0.75rem;
+  color: #3fb950;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
 .modal-progress {
   padding: 1rem 1.5rem;
   border-top: 1px solid #30363d;
