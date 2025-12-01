@@ -492,18 +492,43 @@ function App() {
     const ref = useRef(null)
 
     useEffect(() => {
-      if (ref.current) {
-        // Clear previous content
-        ref.current.innerHTML = chart
-        ref.current.removeAttribute('data-processed')
+      let timeoutId = null
 
-        // Render mermaid diagram
-        mermaid.run({
-          nodes: [ref.current],
-        }).catch((error) => {
-          console.error('Mermaid rendering error:', error)
-          ref.current.innerHTML = `<pre>Error rendering diagram: ${error.message}</pre>`
-        })
+      const renderDiagram = async () => {
+        if (!ref.current) return
+
+        try {
+          // Set the mermaid code
+          ref.current.innerHTML = chart
+          ref.current.removeAttribute('data-processed')
+
+          // Use setTimeout to ensure DOM is ready
+          timeoutId = setTimeout(async () => {
+            if (ref.current) {
+              try {
+                await mermaid.run({
+                  nodes: [ref.current],
+                })
+              } catch (error) {
+                console.error('Mermaid rendering error:', error)
+                if (ref.current) {
+                  ref.current.innerHTML = `<pre style="color: #f85149;">Error rendering diagram:\n${error.message}</pre>`
+                }
+              }
+            }
+          }, 10)
+        } catch (error) {
+          console.error('Mermaid setup error:', error)
+        }
+      }
+
+      renderDiagram()
+
+      // Cleanup function
+      return () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
       }
     }, [chart])
 
