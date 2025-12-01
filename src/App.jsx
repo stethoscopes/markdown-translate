@@ -43,6 +43,12 @@ const LLM_PROVIDERS = {
       { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
       { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
     ]
+  },
+  deepl: {
+    name: 'DeepL',
+    models: [
+      { id: 'deepl-translate', name: 'DeepL Translator' },
+    ]
   }
 }
 
@@ -81,7 +87,8 @@ function App() {
     return stored ? JSON.parse(stored) : {
       openai: '',
       anthropic: '',
-      gemini: ''
+      gemini: '',
+      deepl: ''
     }
   })
   const [showSettingsModal, setShowSettingsModal] = useState(false)
@@ -255,6 +262,8 @@ function App() {
       return import.meta.env.VITE_ANTHROPIC_API_KEY
     } else if (provider === 'gemini') {
       return import.meta.env.VITE_GEMINI_API_KEY
+    } else if (provider === 'deepl') {
+      return import.meta.env.VITE_DEEPL_API_KEY
     }
 
     return null
@@ -366,6 +375,29 @@ function App() {
     return data.candidates[0].content.parts[0].text
   }
 
+  const callDeepL = async (content, apiKey) => {
+    const response = await fetch('https://api-free.deepl.com/v2/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        auth_key: apiKey,
+        text: content,
+        target_lang: 'KO',
+        preserve_formatting: '1',
+        tag_handling: 'xml'
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.translations[0].text
+  }
+
   const translateToKorean = async () => {
     if (!markdownContent) return
 
@@ -400,6 +432,8 @@ function App() {
           apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
         } else if (llmProvider === 'gemini') {
           apiKey = import.meta.env.VITE_GEMINI_API_KEY
+        } else if (llmProvider === 'deepl') {
+          apiKey = import.meta.env.VITE_DEEPL_API_KEY
         }
       }
 
@@ -420,6 +454,9 @@ function App() {
           break
         case 'gemini':
           translated = await callGemini(markdownContent, apiKey, llmModel)
+          break
+        case 'deepl':
+          translated = await callDeepL(markdownContent, apiKey)
           break
         default:
           throw new Error(`Unknown provider: ${llmProvider}`)
@@ -528,6 +565,8 @@ function App() {
         apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
       } else if (llmProvider === 'gemini') {
         apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      } else if (llmProvider === 'deepl') {
+        apiKey = import.meta.env.VITE_DEEPL_API_KEY
       }
     }
 
@@ -569,6 +608,9 @@ function App() {
               break
             case 'gemini':
               translated = await callGemini(text, apiKey, llmModel)
+              break
+            case 'deepl':
+              translated = await callDeepL(text, apiKey)
               break
             default:
               throw new Error(`Unknown provider: ${llmProvider}`)
