@@ -930,3 +930,127 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Floating Control Panel */
+.floating-control {
+  position: fixed;
+  right: 2rem;
+  top: 6rem;
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  min-width: 200px;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.floating-control-header {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #30363d;
+}
+
+.floating-file-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #58a6ff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  word-break: break-word;
+}
+
+.floating-cache-badge {
+  font-size: 0.75rem;
+}
+
+.floating-control-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.floating-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.floating-btn:hover:not(:disabled) {
+  background-color: #30363d;
+  border-color: #484f58;
+  transform: translateX(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.floating-btn:active:not(:disabled) {
+  transform: translateX(0);
+}
+
+.floating-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.floating-toggle-btn {
+  background-color: #1f6feb;
+  color: white;
+  border-color: #1f6feb;
+}
+
+.floating-toggle-btn:hover:not(:disabled) {
+  background-color: #388bfd;
+  border-color: #388bfd;
+}
+
+.floating-translate-btn {
+  background-color: #238636;
+  color: white;
+  border-color: #238636;
+}
+
+.floating-translate-btn:hover:not(:disabled) {
+  background-color: #2ea043;
+  border-color: #2ea043;
+}
+
+.floating-top-btn {
+  background-color: #21262d;
+  border-color: #30363d;
+}
+
+.floating-top-btn:hover {
+  background-color: #30363d;
+  border-color: #484f58;
+}
+
+/* Responsive: hide on small screens */
+@media (max-width: 1200px) {
+  .floating-control {
+    display: none;
+  }
+}

@@ -34,10 +34,22 @@ function App() {
   const [hideEmptyFolders, setHideEmptyFolders] = useState(false)
   const [translatingFiles, setTranslatingFiles] = useState(new Set())
   const [translatedFiles, setTranslatedFiles] = useState(new Set())
+  const [showFloatingControl, setShowFloatingControl] = useState(false)
 
   // Refs for file inputs
   const folderInputRef = useRef(null)
   const fileInputRef = useRef(null)
+
+  // Handle scroll to show/hide floating control
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      setShowFloatingControl(scrollTop > 200) // Show after 200px scroll
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -126,6 +138,10 @@ function App() {
     } else if (fileInputRef.current) {
       fileInputRef.current.click()
     }
+  }
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const translateToKorean = async () => {
@@ -955,6 +971,47 @@ function App() {
                 {isBatchTranslating ? '번역 중...' : `번역 시작 (${selectedFiles.size}개)`}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Control Panel */}
+      {showFloatingControl && markdownContent && (
+        <div className="floating-control">
+          <div className="floating-control-header">
+            <div className="floating-file-name">
+              {fileName}
+              {isCached && <span className="floating-cache-badge">💾</span>}
+            </div>
+          </div>
+          <div className="floating-control-buttons">
+            {translatedContent && (
+              <button
+                className="floating-btn floating-toggle-btn"
+                onClick={() => setShowTranslation(!showTranslation)}
+                title={showTranslation ? "원문 보기" : "번역 보기"}
+              >
+                {showTranslation ? '📄 원문' : '🌐 번역'}
+              </button>
+            )}
+            <button
+              className="floating-btn floating-translate-btn"
+              onClick={translateToKorean}
+              disabled={isTranslating}
+              title="한글로 번역"
+            >
+              {isTranslating ? '⏳' : '🌐'}
+            </button>
+            <button
+              className="floating-btn floating-top-btn"
+              onClick={scrollToTop}
+              title="맨 위로"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 3.5L4 7.5h8L8 3.5z"/>
+                <path d="M8 0.5L4 4.5h8L8 0.5z"/>
+              </svg>
+            </button>
           </div>
         </div>
       )}
