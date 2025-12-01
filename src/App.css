@@ -534,6 +534,23 @@
   margin: 1.5rem 0;
 }
 
+/* Mermaid Diagram Styles */
+.markdown-content .mermaid {
+  background-color: #0d1117;
+  padding: 1rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.markdown-content .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 10px;

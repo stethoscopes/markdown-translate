@@ -1,10 +1,18 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
+import mermaid from 'mermaid'
 import './App.css'
 import 'highlight.js/styles/github-dark.css'
 import { generateHash, getCachedTranslation, saveCachedTranslation } from './utils/translationCache'
+
+// Initialize mermaid
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+})
 
 function App() {
   const [markdownContent, setMarkdownContent] = useState('')
@@ -463,6 +471,29 @@ function App() {
     event.preventDefault()
   }
 
+  // Mermaid component to render diagrams
+  const MermaidComponent = ({ chart }) => {
+    const ref = useRef(null)
+
+    useEffect(() => {
+      if (ref.current) {
+        // Clear previous content
+        ref.current.innerHTML = chart
+        ref.current.removeAttribute('data-processed')
+
+        // Render mermaid diagram
+        mermaid.run({
+          nodes: [ref.current],
+        }).catch((error) => {
+          console.error('Mermaid rendering error:', error)
+          ref.current.innerHTML = `<pre>Error rendering diagram: ${error.message}</pre>`
+        })
+      }
+    }, [chart])
+
+    return <div className="mermaid" ref={ref}></div>
+  }
+
   // Recursive component to render file tree in modal
   const ModalFileTreeNode = ({ node, depth = 0, hideEmpty = false, translatingSet = new Set(), translatedSet = new Set() }) => {
     if (!node) return null
@@ -803,6 +834,24 @@ function App() {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '')
+                      const language = match ? match[1] : null
+
+                      // Check if it's a mermaid code block
+                      if (!inline && language === 'mermaid') {
+                        return <MermaidComponent chart={String(children).replace(/\n$/, '')} />
+                      }
+
+                      // Default code block rendering
+                      return (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      )
+                    }
+                  }}
                 >
                   {showTranslation ? translatedContent : markdownContent}
                 </ReactMarkdown>
