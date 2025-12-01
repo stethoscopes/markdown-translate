@@ -18,6 +18,8 @@ npm run dev
 
 브라우저에서 `http://localhost:5173`을 열면 앱이 실행됩니다.
 
+<img width="2558" height="1215" alt="image" src="https://github.com/user-attachments/assets/419a3346-01c9-49fc-a7a7-633c8902e37f" />
+
 ### 환경 변수 설정 (선택사항)
 
 `.env` 파일을 생성하여 API 키를 설정할 수 있습니다:
