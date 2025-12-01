@@ -36,20 +36,27 @@ function App() {
   const [translatedFiles, setTranslatedFiles] = useState(new Set())
   const [showFloatingControl, setShowFloatingControl] = useState(false)
 
-  // Refs for file inputs
+  // Refs for file inputs and content container
   const folderInputRef = useRef(null)
   const fileInputRef = useRef(null)
+  const contentRef = useRef(null)
 
   // Handle scroll to show/hide floating control
   useEffect(() => {
+    const contentElement = contentRef.current
+
     const handleScroll = () => {
-      const scrollTop = window.scrollY || document.documentElement.scrollTop
-      setShowFloatingControl(scrollTop > 200) // Show after 200px scroll
+      if (contentElement) {
+        const scrollTop = contentElement.scrollTop
+        setShowFloatingControl(scrollTop > 200) // Show after 200px scroll
+      }
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    if (contentElement) {
+      contentElement.addEventListener('scroll', handleScroll)
+      return () => contentElement.removeEventListener('scroll', handleScroll)
+    }
+  }, [markdownContent]) // Re-attach when content changes
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -141,7 +148,9 @@ function App() {
   }
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (contentRef.current) {
+      contentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   const translateToKorean = async () => {
@@ -797,6 +806,7 @@ function App() {
         )}
 
         <main
+          ref={contentRef}
           className="content"
           onDrop={handleDrop}
           onDragOver={handleDragOver}
