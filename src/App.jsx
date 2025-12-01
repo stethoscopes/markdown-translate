@@ -123,6 +123,35 @@ function App() {
     localStorage.setItem('apiKeys', JSON.stringify(apiKeys))
   }, [apiKeys])
 
+  // Check cache status for all files when file list changes
+  useEffect(() => {
+    const checkCacheForAllFiles = async () => {
+      const filesToCheck = allFiles.length > 0 ? allFiles : fileList
+      const cached = new Set()
+
+      for (const file of filesToCheck) {
+        try {
+          const text = await file.text()
+          const path = file.webkitRelativePath || file.name
+          const contentHash = await generateHash(text)
+          const cachedTranslation = await getCachedTranslation(path, contentHash)
+
+          if (cachedTranslation) {
+            cached.add(path)
+          }
+        } catch (error) {
+          console.error('Error checking cache for file:', error)
+        }
+      }
+
+      setCachedFiles(cached)
+    }
+
+    if (fileList.length > 0 || allFiles.length > 0) {
+      checkCacheForAllFiles()
+    }
+  }, [fileList, allFiles])
+
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
     const root = { name: '', children: {}, files: [], isFolder: true }
@@ -857,6 +886,7 @@ function App() {
           const isMd = isMarkdownFile(fileItem.name)
           const isActive = fileItem.path === filePath
           const isFileLast = index === files.length - 1
+          const hasCachedTranslation = cachedFiles.has(fileItem.path)
           return (
             <div key={fileItem.path} className="tree-node">
               <li
@@ -875,7 +905,7 @@ function App() {
                   )}
                 </span>
                 <span className="file-icon">
-                  {isMd ? '📄' : '📃'}
+                  {isMd ? (hasCachedTranslation ? '💾' : '📄') : '📃'}
                 </span>
                 <span className="file-path">{fileItem.name}</span>
               </li>
@@ -985,16 +1015,20 @@ function App() {
             <ul className="file-list">
               {fileTree
                 ? <FileTreeNode node={fileTree} depth={0} />
-                : fileList.map((file, index) => (
-                    <li
-                      key={index}
-                      className={`file-item ${file.name === fileName ? 'active' : ''}`}
-                      onClick={() => loadFile(file)}
-                    >
-                      <span className="file-icon">📄</span>
-                      <span className="file-path">{file.name}</span>
-                    </li>
-                  ))}
+                : fileList.map((file, index) => {
+                    const filePath = file.webkitRelativePath || file.name
+                    const hasCachedTranslation = cachedFiles.has(filePath)
+                    return (
+                      <li
+                        key={index}
+                        className={`file-item ${file.name === fileName ? 'active' : ''}`}
+                        onClick={() => loadFile(file)}
+                      >
+                        <span className="file-icon">{hasCachedTranslation ? '💾' : '📄'}</span>
+                        <span className="file-path">{file.name}</span>
+                      </li>
+                    )
+                  })}
             </ul>
           </aside>
         )}
