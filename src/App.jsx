@@ -14,6 +14,38 @@ mermaid.initialize({
   securityLevel: 'loose',
 })
 
+// LLM Provider configurations
+const LLM_PROVIDERS = {
+  openai: {
+    name: 'OpenAI',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+    ]
+  },
+  anthropic: {
+    name: 'Anthropic',
+    models: [
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+      { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet' },
+      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
+    ]
+  },
+  gemini: {
+    name: 'Google Gemini',
+    models: [
+      { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash' },
+      { id: 'gemini-exp-1206', name: 'Gemini Exp 1206' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    ]
+  }
+}
+
 function App() {
   const [markdownContent, setMarkdownContent] = useState('')
   const [fileName, setFileName] = useState('')
@@ -37,6 +69,23 @@ function App() {
   const [showFloatingControl, setShowFloatingControl] = useState(false)
   const [isFloatingControlExpanded, setIsFloatingControlExpanded] = useState(false)
 
+  // LLM Settings
+  const [llmProvider, setLlmProvider] = useState(() => {
+    return localStorage.getItem('llmProvider') || 'openai'
+  })
+  const [llmModel, setLlmModel] = useState(() => {
+    return localStorage.getItem('llmModel') || 'gpt-4o-mini'
+  })
+  const [apiKeys, setApiKeys] = useState(() => {
+    const stored = localStorage.getItem('apiKeys')
+    return stored ? JSON.parse(stored) : {
+      openai: '',
+      anthropic: '',
+      gemini: ''
+    }
+  })
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+
   // Refs for file inputs and content container
   const folderInputRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -58,6 +107,19 @@ function App() {
       return () => contentElement.removeEventListener('scroll', handleScroll)
     }
   }, [markdownContent]) // Re-attach when content changes
+
+  // Persist LLM settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('llmProvider', llmProvider)
+  }, [llmProvider])
+
+  useEffect(() => {
+    localStorage.setItem('llmModel', llmModel)
+  }, [llmModel])
+
+  useEffect(() => {
+    localStorage.setItem('apiKeys', JSON.stringify(apiKeys))
+  }, [apiKeys])
 
   // Build file tree structure from flat file list
   const buildFileTree = (files) => {
@@ -154,6 +216,93 @@ function App() {
     }
   }
 
+  // API call functions for different providers
+  const callOpenAI = async (content, apiKey, model) => {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional translator. Translate the given Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.'
+          },
+          {
+            role: 'user',
+            content: content
+          }
+        ],
+        temperature: 0.3
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.choices[0].message.content
+  }
+
+  const callAnthropic = async (content, apiKey, model) => {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 8192,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a professional translator. Translate the following Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.\n\n${content}`
+          }
+        ],
+        temperature: 0.3
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.content[0].text
+  }
+
+  const callGemini = async (content, apiKey, model) => {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are a professional translator. Translate the following Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.\n\n${content}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+        }
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.candidates[0].content.parts[0].text
+  }
+
   const translateToKorean = async () => {
     if (!markdownContent) return
 
@@ -177,41 +326,41 @@ function App() {
       }
 
       // Cache miss - proceed with API call
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-      if (!apiKey || apiKey === 'your_openai_api_key_here') {
-        alert('OpenAI API 키가 설정되지 않았습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정해주세요.')
+      // Get API key for selected provider
+      let apiKey = apiKeys[llmProvider]
+
+      // Fallback to environment variables if not set in settings
+      if (!apiKey) {
+        if (llmProvider === 'openai') {
+          apiKey = import.meta.env.VITE_OPENAI_API_KEY
+        } else if (llmProvider === 'anthropic') {
+          apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+        } else if (llmProvider === 'gemini') {
+          apiKey = import.meta.env.VITE_GEMINI_API_KEY
+        }
+      }
+
+      if (!apiKey) {
+        alert(`${LLM_PROVIDERS[llmProvider].name} API 키가 설정되지 않았습니다. 설정 메뉴에서 API 키를 입력해주세요.`)
         setIsTranslating(false)
         return
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a professional translator. Translate the given Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.'
-            },
-            {
-              role: 'user',
-              content: markdownContent
-            }
-          ],
-          temperature: 0.3
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`API 요청 실패: ${response.status} ${response.statusText}`)
+      // Call appropriate API based on provider
+      let translated
+      switch (llmProvider) {
+        case 'openai':
+          translated = await callOpenAI(markdownContent, apiKey, llmModel)
+          break
+        case 'anthropic':
+          translated = await callAnthropic(markdownContent, apiKey, llmModel)
+          break
+        case 'gemini':
+          translated = await callGemini(markdownContent, apiKey, llmModel)
+          break
+        default:
+          throw new Error(`Unknown provider: ${llmProvider}`)
       }
-
-      const data = await response.json()
-      const translated = data.choices[0].message.content
 
       // Save to cache
       await saveCachedTranslation(
@@ -741,6 +890,16 @@ function App() {
             <div className="sidebar-header">
               <h3>파일 목록</h3>
               <div className="sidebar-controls">
+                <button
+                  className="tree-control-btn settings-btn"
+                  onClick={() => setShowSettingsModal(true)}
+                  title="설정"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
+                    <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/>
+                  </svg>
+                </button>
                 {(fileList.length > 0 || allFiles.length > 0) && (
                   <button
                     className="tree-control-btn refresh-btn"
@@ -912,6 +1071,102 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="modal-content settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚙️ 번역 설정</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowSettingsModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="settings-section">
+              <h3>LLM Provider</h3>
+              <div className="provider-selector">
+                {Object.entries(LLM_PROVIDERS).map(([key, provider]) => (
+                  <label key={key} className="provider-option">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value={key}
+                      checked={llmProvider === key}
+                      onChange={(e) => {
+                        setLlmProvider(e.target.value)
+                        // Set default model for the provider
+                        const defaultModel = LLM_PROVIDERS[e.target.value].models[0].id
+                        setLlmModel(defaultModel)
+                      }}
+                    />
+                    <span className="provider-name">{provider.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Model</h3>
+              <select
+                className="model-selector"
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+              >
+                {LLM_PROVIDERS[llmProvider].models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="settings-section">
+              <h3>API Keys</h3>
+              <p className="settings-hint">
+                API 키는 브라우저에만 저장되며 외부로 전송되지 않습니다.
+                <br />
+                .env 파일에 설정된 키가 있다면 여기서 설정하지 않아도 사용됩니다.
+              </p>
+
+              {Object.entries(LLM_PROVIDERS).map(([key, provider]) => (
+                <div key={key} className="api-key-input-group">
+                  <label>{provider.name} API Key</label>
+                  <input
+                    type="password"
+                    className="api-key-input"
+                    value={apiKeys[key]}
+                    onChange={(e) => {
+                      setApiKeys({
+                        ...apiKeys,
+                        [key]: e.target.value
+                      })
+                    }}
+                    placeholder={`Enter ${provider.name} API key (선택사항)`}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="settings-footer">
+              <div className="current-settings">
+                <strong>현재 설정:</strong> {LLM_PROVIDERS[llmProvider].name} - {
+                  LLM_PROVIDERS[llmProvider].models.find(m => m.id === llmModel)?.name
+                }
+              </div>
+              <button
+                className="modal-submit"
+                onClick={() => setShowSettingsModal(false)}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Batch Translation Modal */}
       {showBatchModal && (
