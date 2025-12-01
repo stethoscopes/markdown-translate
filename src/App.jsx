@@ -1164,7 +1164,7 @@ function App() {
                         {model.id}
                       </option>
                     ))}
-                    <option value="__custom__">🖊️ 직접 입력</option>
+                    <option value="__custom__">직접 입력</option>
                   </select>
                 </>
               ) : (
