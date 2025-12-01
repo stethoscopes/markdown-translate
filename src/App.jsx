@@ -85,6 +85,8 @@ function App() {
     }
   })
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [isCustomModel, setIsCustomModel] = useState(false)
+  const [customModelInput, setCustomModelInput] = useState('')
 
   // Refs for file inputs and content container
   const folderInputRef = useRef(null)
@@ -208,6 +210,38 @@ function App() {
     } else if (fileInputRef.current) {
       fileInputRef.current.click()
     }
+  }
+
+  // Helper functions for API key management
+  const getEffectiveApiKey = (provider) => {
+    // Check stored API key first
+    if (apiKeys[provider]) {
+      return apiKeys[provider]
+    }
+
+    // Fallback to environment variables
+    if (provider === 'openai') {
+      return import.meta.env.VITE_OPENAI_API_KEY
+    } else if (provider === 'anthropic') {
+      return import.meta.env.VITE_ANTHROPIC_API_KEY
+    } else if (provider === 'gemini') {
+      return import.meta.env.VITE_GEMINI_API_KEY
+    }
+
+    return null
+  }
+
+  const maskApiKey = (key) => {
+    if (!key || key.length < 8) return '••••••••'
+
+    // Show first 4 and last 4 characters
+    const prefix = key.substring(0, 4)
+    const suffix = key.substring(key.length - 4)
+    return `${prefix}••••••••${suffix}`
+  }
+
+  const isApiKeyActive = (provider) => {
+    return !!getEffectiveApiKey(provider)
   }
 
   const scrollToTop = () => {
@@ -1111,17 +1145,61 @@ function App() {
 
             <div className="settings-section">
               <h3>Model</h3>
-              <select
-                className="model-selector"
-                value={llmModel}
-                onChange={(e) => setLlmModel(e.target.value)}
-              >
-                {LLM_PROVIDERS[llmProvider].models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
+              {!isCustomModel ? (
+                <>
+                  <select
+                    className="model-selector"
+                    value={llmModel}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomModel(true)
+                        setCustomModelInput(llmModel)
+                      } else {
+                        setLlmModel(e.target.value)
+                      }
+                    }}
+                  >
+                    {LLM_PROVIDERS[llmProvider].models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.id}
+                      </option>
+                    ))}
+                    <option value="__custom__">🖊️ 직접 입력</option>
+                  </select>
+                </>
+              ) : (
+                <div className="custom-model-input-wrapper">
+                  <input
+                    type="text"
+                    className="custom-model-input"
+                    value={customModelInput}
+                    onChange={(e) => setCustomModelInput(e.target.value)}
+                    placeholder="모델 ID 입력 (예: gpt-4o-mini)"
+                  />
+                  <div className="custom-model-buttons">
+                    <button
+                      className="custom-model-btn confirm-btn"
+                      onClick={() => {
+                        if (customModelInput.trim()) {
+                          setLlmModel(customModelInput.trim())
+                          setIsCustomModel(false)
+                        }
+                      }}
+                    >
+                      ✓ 확인
+                    </button>
+                    <button
+                      className="custom-model-btn cancel-btn"
+                      onClick={() => {
+                        setIsCustomModel(false)
+                        setCustomModelInput('')
+                      }}
+                    >
+                      ✕ 취소
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="settings-section">
@@ -1132,30 +1210,49 @@ function App() {
                 .env 파일에 설정된 키가 있다면 여기서 설정하지 않아도 사용됩니다.
               </p>
 
-              {Object.entries(LLM_PROVIDERS).map(([key, provider]) => (
-                <div key={key} className="api-key-input-group">
-                  <label>{provider.name} API Key</label>
-                  <input
-                    type="password"
-                    className="api-key-input"
-                    value={apiKeys[key]}
-                    onChange={(e) => {
-                      setApiKeys({
-                        ...apiKeys,
-                        [key]: e.target.value
-                      })
-                    }}
-                    placeholder={`Enter ${provider.name} API key (선택사항)`}
-                  />
-                </div>
-              ))}
+              {Object.entries(LLM_PROVIDERS).map(([key, provider]) => {
+                const effectiveKey = getEffectiveApiKey(key)
+                const isActive = isApiKeyActive(key)
+
+                return (
+                  <div key={key} className="api-key-input-group">
+                    <label>
+                      {provider.name} API Key
+                      {isActive && (
+                        <span className="api-key-active-badge" title="API 키가 활성화되어 있습니다">
+                          ✓ 활성화됨
+                        </span>
+                      )}
+                    </label>
+                    <div className="api-key-input-wrapper">
+                      <input
+                        type="password"
+                        className="api-key-input"
+                        value={apiKeys[key]}
+                        onChange={(e) => {
+                          setApiKeys({
+                            ...apiKeys,
+                            [key]: e.target.value
+                          })
+                        }}
+                        placeholder={
+                          effectiveKey
+                            ? maskApiKey(effectiveKey)
+                            : `Enter ${provider.name} API key (선택사항)`
+                        }
+                      />
+                      {effectiveKey && !apiKeys[key] && (
+                        <span className="api-key-source-hint">.env 파일</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             <div className="settings-footer">
               <div className="current-settings">
-                <strong>현재 설정:</strong> {LLM_PROVIDERS[llmProvider].name} - {
-                  LLM_PROVIDERS[llmProvider].models.find(m => m.id === llmModel)?.name
-                }
+                <strong>현재 설정:</strong> {LLM_PROVIDERS[llmProvider].name} - <code>{llmModel}</code>
               </div>
               <button
                 className="modal-submit"
