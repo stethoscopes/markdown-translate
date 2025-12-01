@@ -519,9 +519,20 @@ function App() {
       return
     }
 
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-    if (!apiKey || apiKey === 'your_openai_api_key_here') {
-      alert('OpenAI API 키가 설정되지 않았습니다. .env 파일에 VITE_OPENAI_API_KEY를 설정해주세요.')
+    // Get API key for selected provider
+    let apiKey = apiKeys[llmProvider]
+    if (!apiKey) {
+      if (llmProvider === 'openai') {
+        apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      } else if (llmProvider === 'anthropic') {
+        apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+      } else if (llmProvider === 'gemini') {
+        apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      }
+    }
+
+    if (!apiKey) {
+      alert(`${LLM_PROVIDERS[llmProvider].name} API 키가 설정되지 않았습니다. 설정 메뉴에서 API 키를 입력해주세요.`)
       return
     }
 
@@ -533,81 +544,81 @@ function App() {
     )
 
     let completed = 0
+    const concurrencyLimit = 3
 
     try {
-      // Translate files in parallel (limit to 3 concurrent requests)
-      const batchSize = 3
-      for (let i = 0; i < filesToTranslate.length; i += batchSize) {
-        const batch = filesToTranslate.slice(i, i + batchSize)
+      // Rolling concurrency: maintain 3 concurrent translations at all times
+      const translateFile = async (file) => {
+        const filePath = file.webkitRelativePath || file.name
 
-        await Promise.all(batch.map(async (file) => {
-          const filePath = file.webkitRelativePath || file.name
+        try {
+          // Mark as translating
+          setTranslatingFiles(prev => new Set([...prev, filePath]))
 
-          try {
-            // Mark as translating
-            setTranslatingFiles(prev => new Set([...prev, filePath]))
+          const text = await file.text()
+          const hash = await generateHash(text)
 
-            const text = await file.text()
-            const hash = await generateHash(text)
-
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-              },
-              body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
-                  {
-                    role: 'system',
-                    content: 'You are a professional translator. Translate the given Markdown content to Korean while preserving all Markdown formatting, code blocks, links, and structure. Only translate the text content, not the Markdown syntax or code.'
-                  },
-                  {
-                    role: 'user',
-                    content: text
-                  }
-                ],
-                temperature: 0.3
-              })
-            })
-
-            if (response.ok) {
-              const data = await response.json()
-              const translated = data.choices[0].message.content
-              await saveCachedTranslation(filePath, hash, text, translated)
-              console.log(`✅ Translated and cached: ${filePath}`)
-
-              // Mark as completed
-              setTranslatingFiles(prev => {
-                const newSet = new Set(prev)
-                newSet.delete(filePath)
-                return newSet
-              })
-              setTranslatedFiles(prev => new Set([...prev, filePath]))
-            } else {
-              console.error(`❌ Translation failed: ${filePath}`)
-              // Remove from translating on failure
-              setTranslatingFiles(prev => {
-                const newSet = new Set(prev)
-                newSet.delete(filePath)
-                return newSet
-              })
-            }
-          } catch (error) {
-            console.error(`❌ Error translating ${file.name}:`, error)
-            // Remove from translating on error
-            setTranslatingFiles(prev => {
-              const newSet = new Set(prev)
-              newSet.delete(filePath)
-              return newSet
-            })
-          } finally {
-            completed++
-            setBatchProgress({ current: completed, total: selectedFiles.size })
+          // Call appropriate API based on provider
+          let translated
+          switch (llmProvider) {
+            case 'openai':
+              translated = await callOpenAI(text, apiKey, llmModel)
+              break
+            case 'anthropic':
+              translated = await callAnthropic(text, apiKey, llmModel)
+              break
+            case 'gemini':
+              translated = await callGemini(text, apiKey, llmModel)
+              break
+            default:
+              throw new Error(`Unknown provider: ${llmProvider}`)
           }
-        }))
+
+          await saveCachedTranslation(filePath, hash, text, translated)
+          console.log(`✅ Translated and cached: ${filePath}`)
+
+          // Mark as completed
+          setTranslatingFiles(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(filePath)
+            return newSet
+          })
+          setTranslatedFiles(prev => new Set([...prev, filePath]))
+          setCachedFiles(prev => new Set([...prev, filePath]))
+
+        } catch (error) {
+          console.error(`❌ Error translating ${file.name}:`, error)
+          // Remove from translating on error
+          setTranslatingFiles(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(filePath)
+            return newSet
+          })
+        } finally {
+          completed++
+          setBatchProgress({ current: completed, total: selectedFiles.size })
+        }
       }
+
+      // Create a pool of promises with tracking
+      const executing = new Set()
+
+      for (const file of filesToTranslate) {
+        // Wrap the translation in a promise that removes itself from the set when done
+        const promise = translateFile(file).then(() => {
+          executing.delete(promise)
+        })
+
+        executing.add(promise)
+
+        // If we've reached the concurrency limit, wait for one to complete
+        if (executing.size >= concurrencyLimit) {
+          await Promise.race(executing)
+        }
+      }
+
+      // Wait for all remaining translations to complete
+      await Promise.all(executing)
 
       alert(`일괄 번역 완료! ${completed}개 파일이 번역되었습니다.`)
       setShowBatchModal(false)
