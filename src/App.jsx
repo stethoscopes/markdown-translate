@@ -35,6 +35,7 @@ function App() {
   const [translatingFiles, setTranslatingFiles] = useState(new Set())
   const [translatedFiles, setTranslatedFiles] = useState(new Set())
   const [showFloatingControl, setShowFloatingControl] = useState(false)
+  const [isFloatingControlExpanded, setIsFloatingControlExpanded] = useState(false)
 
   // Refs for file inputs and content container
   const folderInputRef = useRef(null)
@@ -1012,43 +1013,65 @@ function App() {
 
       {/* Floating Control Panel */}
       {showFloatingControl && markdownContent && (
-        <div className="floating-control">
-          <div className="floating-control-header">
-            <div className="floating-file-name">
-              {fileName}
-              {isCached && <span className="floating-cache-badge">💾</span>}
+        <>
+          {isFloatingControlExpanded ? (
+            <div className="floating-control floating-control-expanded">
+              <div className="floating-control-header">
+                <div className="floating-file-name">
+                  {fileName}
+                  {isCached && <span className="floating-cache-badge">💾</span>}
+                </div>
+                <button
+                  className="floating-minimize-btn"
+                  onClick={() => setIsFloatingControlExpanded(false)}
+                  title="최소화"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="floating-control-buttons">
+                {translatedContent && (
+                  <button
+                    className="floating-btn floating-toggle-btn"
+                    onClick={() => setShowTranslation(!showTranslation)}
+                    title={showTranslation ? "원문 보기" : "번역 보기"}
+                  >
+                    {showTranslation ? '📄 원문' : '🌐 번역'}
+                  </button>
+                )}
+                <button
+                  className="floating-btn floating-translate-btn"
+                  onClick={translateToKorean}
+                  disabled={isTranslating}
+                  title="한글로 번역"
+                >
+                  {isTranslating ? '⏳' : '🌐'}
+                </button>
+                <button
+                  className="floating-btn floating-top-btn"
+                  onClick={scrollToTop}
+                  title="맨 위로"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 3.5L4 7.5h8L8 3.5z"/>
+                    <path d="M8 0.5L4 4.5h8L8 0.5z"/>
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="floating-control-buttons">
-            {translatedContent && (
-              <button
-                className="floating-btn floating-toggle-btn"
-                onClick={() => setShowTranslation(!showTranslation)}
-                title={showTranslation ? "원문 보기" : "번역 보기"}
-              >
-                {showTranslation ? '📄 원문' : '🌐 번역'}
-              </button>
-            )}
+          ) : (
             <button
-              className="floating-btn floating-translate-btn"
-              onClick={translateToKorean}
-              disabled={isTranslating}
-              title="한글로 번역"
+              className="floating-control floating-control-collapsed"
+              onClick={() => setIsFloatingControlExpanded(true)}
+              title="리모컨 열기"
             >
-              {isTranslating ? '⏳' : '🌐'}
-            </button>
-            <button
-              className="floating-btn floating-top-btn"
-              onClick={scrollToTop}
-              title="맨 위로"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 3.5L4 7.5h8L8 3.5z"/>
-                <path d="M8 0.5L4 4.5h8L8 0.5z"/>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.5"/>
               </svg>
             </button>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   )

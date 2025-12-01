@@ -936,14 +936,43 @@
   position: fixed;
   right: 2rem;
   top: 6rem;
+  z-index: 100;
+}
+
+.floating-control-expanded {
   background-color: #161b22;
   border: 1px solid #30363d;
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  z-index: 100;
   min-width: 200px;
   animation: slideInRight 0.3s ease-out;
+}
+
+.floating-control-collapsed {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.floating-control-collapsed:hover {
+  background-color: #1c2128;
+  border-color: #58a6ff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transform: scale(1.05);
+}
+
+.floating-control-collapsed svg {
+  color: #58a6ff;
 }
 
 @keyframes slideInRight {
@@ -961,6 +990,10 @@
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #30363d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .floating-file-name {
@@ -971,10 +1004,32 @@
   align-items: center;
   gap: 0.5rem;
   word-break: break-word;
+  flex: 1;
 }
 
 .floating-cache-badge {
   font-size: 0.75rem;
+}
+
+.floating-minimize-btn {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+}
+
+.floating-minimize-btn:hover {
+  background-color: #30363d;
+  color: #f85149;
 }
 
 .floating-control-buttons {
