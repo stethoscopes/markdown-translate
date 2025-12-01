@@ -19,7 +19,8 @@ npm run dev
 브라우저에서 `http://localhost:5173`을 열면 앱이 실행됩니다.
 
 ## 📖 사용 방법
-<img width="2555" height="1215" alt="image" src="https://github.com/user-attachments/assets/4d92d32f-835a-44e2-873c-3b5f526c8e39" />
+<img width="2558" height="1215" alt="image" src="https://github.com/user-attachments/assets/419a3346-01c9-49fc-a7a7-633c8902e37f" />
+
 
 1. **폴더 선택 (추천)**
    - 우측 상단의 "📁 폴더 선택" 버튼을 클릭
