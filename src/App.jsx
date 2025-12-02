@@ -10,7 +10,7 @@ import { generateHash, getCachedTranslation, saveCachedTranslation } from './uti
 // Initialize mermaid
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'dark',
+  theme: 'default',
   securityLevel: 'loose',
 })
 
@@ -796,36 +796,6 @@ function App() {
         rect.setAttribute('height', bbox.height + padding * 2)
         rect.setAttribute('fill', 'white')
         clonedSvg.insertBefore(rect, clonedSvg.firstChild)
-
-        // Add style element to override light-colored text for white background
-        const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
-        style.textContent = `
-          /* Override all light-colored text from dark theme */
-          text,
-          tspan,
-          .label text,
-          .label span,
-          .nodeLabel,
-          .edgeLabel,
-          .cluster-label text {
-            fill: #1a1a1a !important;
-            color: #1a1a1a !important;
-          }
-
-          /* Keep stroke colors but ensure visibility */
-          text[fill="#ccc"],
-          text[fill="#cccccc"],
-          text[fill="#999"],
-          text[fill="#aaa"],
-          [style*="fill: #ccc"],
-          [style*="color: #ccc"],
-          [style*="fill:#ccc"],
-          [style*="color:#ccc"] {
-            fill: #1a1a1a !important;
-            color: #1a1a1a !important;
-          }
-        `
-        clonedSvg.insertBefore(style, clonedSvg.firstChild)
 
         // Set viewBox with padding
         clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`)
