@@ -10,7 +10,10 @@ import { generateHash, getCachedTranslation, saveCachedTranslation } from './uti
 // Initialize mermaid
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'default',
+  theme: 'neutral',
+  themeVariables: {
+    background: '#ffffff',
+  },
   securityLevel: 'loose',
 })
 
