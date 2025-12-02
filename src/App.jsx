@@ -797,71 +797,23 @@ function App() {
         rect.setAttribute('fill', 'white')
         clonedSvg.insertBefore(rect, clonedSvg.firstChild)
 
-        // Fix light-colored text that's hard to read on white background
-        const hexToRgb = (hex) => {
-          const result = /^#?([a-f\d]{1,2})([a-f\d]{1,2})([a-f\d]{1,2})$/i.exec(hex)
-          if (!result) return null
-
-          return {
-            r: parseInt(result[1].length === 1 ? result[1] + result[1] : result[1], 16),
-            g: parseInt(result[2].length === 1 ? result[2] + result[2] : result[2], 16),
-            b: parseInt(result[3].length === 1 ? result[3] + result[3] : result[3], 16)
+        // Add style element to override light-colored text
+        const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+        style.textContent = `
+          .label text,
+          .label span,
+          text[fill="#ccc"],
+          text[fill="#cccccc"],
+          text[fill="rgb(204, 204, 204)"],
+          [style*="fill: #ccc"],
+          [style*="color: #ccc"],
+          [style*="fill:#ccc"],
+          [style*="color:#ccc"] {
+            fill: #333 !important;
+            color: #333 !important;
           }
-        }
-
-        const isLightColor = (color) => {
-          if (!color || color === 'none') return false
-
-          let r, g, b
-
-          // Handle hex colors (#ccc, #cccccc)
-          if (color.startsWith('#')) {
-            const rgb = hexToRgb(color)
-            if (!rgb) return false
-            r = rgb.r
-            g = rgb.g
-            b = rgb.b
-          } else {
-            // Handle rgb() colors
-            const rgb = color.match(/\d+/g)
-            if (!rgb || rgb.length < 3) return false
-            [r, g, b] = rgb.map(Number)
-          }
-
-          // Calculate brightness (0-255)
-          const brightness = (r * 299 + g * 587 + b * 114) / 1000
-
-          // If brightness is > 160, it's too light for white background
-          return brightness > 160
-        }
-
-        const textElements = clonedSvg.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel, .label text, .label span')
-        textElements.forEach(el => {
-          // Check all possible color sources
-          const styleFill = el.style.fill
-          const styleColor = el.style.color
-          const attrFill = el.getAttribute('fill')
-
-          // Check and fix each color source
-          if (styleFill && isLightColor(styleFill)) {
-            el.style.fill = 'black'
-          }
-          if (styleColor && isLightColor(styleColor)) {
-            el.style.color = 'black'
-          }
-          if (attrFill && isLightColor(attrFill)) {
-            el.setAttribute('fill', 'black')
-          }
-
-          // If no explicit color set but still light, set to black
-          if (!styleFill && !styleColor && !attrFill) {
-            const computedFill = window.getComputedStyle(el).fill
-            if (isLightColor(computedFill)) {
-              el.style.fill = 'black'
-              el.style.color = 'black'
-            }
-          }
-        })
+        `
+        clonedSvg.insertBefore(style, clonedSvg.firstChild)
 
         // Set viewBox with padding
         clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`)
