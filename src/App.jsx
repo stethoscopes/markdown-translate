@@ -797,12 +797,30 @@ function App() {
         rect.setAttribute('fill', 'white')
         clonedSvg.insertBefore(rect, clonedSvg.firstChild)
 
-        // Set all text colors to black for better readability on white background
+        // Fix light-colored text that's hard to read on white background
+        const isLightColor = (color) => {
+          if (!color || color === 'none') return false
+
+          // Convert color to RGB
+          const rgb = color.match(/\d+/g)
+          if (!rgb || rgb.length < 3) return false
+
+          const [r, g, b] = rgb.map(Number)
+          // Calculate brightness (0-255)
+          const brightness = (r * 299 + g * 587 + b * 114) / 1000
+
+          // If brightness is > 160, it's too light for white background
+          return brightness > 160
+        }
+
         const textElements = clonedSvg.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel')
         textElements.forEach(el => {
-          el.style.fill = 'black'
-          el.style.color = 'black'
-          el.setAttribute('fill', 'black')
+          const fill = el.getAttribute('fill') || window.getComputedStyle(el).fill
+
+          if (isLightColor(fill)) {
+            el.style.fill = 'black'
+            el.setAttribute('fill', 'black')
+          }
         })
 
         // Set viewBox with padding
