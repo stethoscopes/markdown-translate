@@ -778,12 +778,18 @@ function App() {
         // Clone the SVG to avoid modifying the original
         const clonedSvg = svgElement.cloneNode(true)
 
-        // Set white background
-        clonedSvg.style.backgroundColor = 'white'
-
         // Get SVG dimensions
         const bbox = svgElement.getBBox()
         const padding = 20
+
+        // Add white background rectangle as first child
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        rect.setAttribute('x', bbox.x - padding)
+        rect.setAttribute('y', bbox.y - padding)
+        rect.setAttribute('width', bbox.width + padding * 2)
+        rect.setAttribute('height', bbox.height + padding * 2)
+        rect.setAttribute('fill', 'white')
+        clonedSvg.insertBefore(rect, clonedSvg.firstChild)
 
         // Set viewBox with padding
         clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`)
@@ -792,30 +798,10 @@ function App() {
 
         // Convert SVG to data URL
         const svgData = new XMLSerializer().serializeToString(clonedSvg)
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
-        const url = URL.createObjectURL(svgBlob)
+        const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)
 
-        // Create image from SVG
-        const img = new Image()
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          canvas.width = bbox.width + padding * 2
-          canvas.height = bbox.height + padding * 2
-
-          const ctx = canvas.getContext('2d')
-          // Fill with white background
-          ctx.fillStyle = 'white'
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          ctx.drawImage(img, 0, 0)
-
-          // Convert to PNG
-          const pngUrl = canvas.toDataURL('image/png')
-          setMermaidImageUrl(pngUrl)
-          setShowMermaidModal(true)
-
-          URL.revokeObjectURL(url)
-        }
-        img.src = url
+        setMermaidImageUrl(svgDataUrl)
+        setShowMermaidModal(true)
       } catch (error) {
         console.error('Error converting diagram to image:', error)
       }
