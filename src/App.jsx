@@ -158,7 +158,12 @@ function App() {
             cached.add(path)
           }
         } catch (error) {
-          console.error('Error checking cache for file:', error)
+          if (error.name === 'NotReadableError') {
+            console.warn(`파일 접근 권한 만료: ${file.name}`)
+            // Skip this file and continue with others
+          } else {
+            console.error('Error checking cache for file:', error)
+          }
         }
       }
 
@@ -757,26 +762,42 @@ function App() {
   }
 
   const loadFile = async (file) => {
-    const text = await file.text()
-    setMarkdownContent(text)
-    setFileName(file.name)
-    const path = file.webkitRelativePath || file.name
-    setFilePath(path)
+    try {
+      const text = await file.text()
+      setMarkdownContent(text)
+      setFileName(file.name)
+      const path = file.webkitRelativePath || file.name
+      setFilePath(path)
 
-    // Check if translation exists in cache
-    const contentHash = await generateHash(text)
-    const cachedTranslation = await getCachedTranslation(path, contentHash)
+      // Check if translation exists in cache
+      const contentHash = await generateHash(text)
+      const cachedTranslation = await getCachedTranslation(path, contentHash)
 
-    if (cachedTranslation) {
-      // If cached translation exists, show it automatically
-      setTranslatedContent(cachedTranslation)
-      setShowTranslation(true)
-      setIsCached(true)
-    } else {
-      // Reset translation state when no cache found
-      setTranslatedContent('')
-      setShowTranslation(false)
-      setIsCached(false)
+      if (cachedTranslation) {
+        // If cached translation exists, show it automatically
+        setTranslatedContent(cachedTranslation)
+        setShowTranslation(true)
+        setIsCached(true)
+      } else {
+        // Reset translation state when no cache found
+        setTranslatedContent('')
+        setShowTranslation(false)
+        setIsCached(false)
+      }
+    } catch (error) {
+      if (error.name === 'NotReadableError') {
+        alert('파일을 읽을 수 없습니다.\n\n파일이 삭제되었거나 접근 권한이 만료되었습니다.\n폴더/파일을 다시 선택해주세요.')
+        // Clear file list to prompt re-selection
+        setFileList([])
+        setAllFiles([])
+        setFileTree(null)
+        setMarkdownContent('')
+        setFileName('')
+        setFilePath('')
+      } else {
+        console.error('파일 로드 오류:', error)
+        alert(`파일을 로드하는 중 오류가 발생했습니다: ${error.message}`)
+      }
     }
   }
 
