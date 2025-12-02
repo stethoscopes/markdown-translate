@@ -94,6 +94,8 @@ function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [isCustomModel, setIsCustomModel] = useState(false)
   const [customModelInput, setCustomModelInput] = useState('')
+  const [showMermaidModal, setShowMermaidModal] = useState(false)
+  const [mermaidImageUrl, setMermaidImageUrl] = useState('')
 
   // Refs for file inputs and content container
   const folderInputRef = useRef(null)
@@ -766,6 +768,59 @@ function App() {
   const MermaidComponent = ({ chart }) => {
     const ref = useRef(null)
 
+    const convertToImage = async () => {
+      if (!ref.current) return
+
+      const svgElement = ref.current.querySelector('svg')
+      if (!svgElement) return
+
+      try {
+        // Clone the SVG to avoid modifying the original
+        const clonedSvg = svgElement.cloneNode(true)
+
+        // Set white background
+        clonedSvg.style.backgroundColor = 'white'
+
+        // Get SVG dimensions
+        const bbox = svgElement.getBBox()
+        const padding = 20
+
+        // Set viewBox with padding
+        clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`)
+        clonedSvg.setAttribute('width', bbox.width + padding * 2)
+        clonedSvg.setAttribute('height', bbox.height + padding * 2)
+
+        // Convert SVG to data URL
+        const svgData = new XMLSerializer().serializeToString(clonedSvg)
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+        const url = URL.createObjectURL(svgBlob)
+
+        // Create image from SVG
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = bbox.width + padding * 2
+          canvas.height = bbox.height + padding * 2
+
+          const ctx = canvas.getContext('2d')
+          // Fill with white background
+          ctx.fillStyle = 'white'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.drawImage(img, 0, 0)
+
+          // Convert to PNG
+          const pngUrl = canvas.toDataURL('image/png')
+          setMermaidImageUrl(pngUrl)
+          setShowMermaidModal(true)
+
+          URL.revokeObjectURL(url)
+        }
+        img.src = url
+      } catch (error) {
+        console.error('Error converting diagram to image:', error)
+      }
+    }
+
     useEffect(() => {
       let timeoutId = null
 
@@ -807,7 +862,15 @@ function App() {
       }
     }, [chart])
 
-    return <div className="mermaid" ref={ref}></div>
+    return (
+      <div
+        className="mermaid"
+        ref={ref}
+        onClick={convertToImage}
+        style={{ cursor: 'pointer' }}
+        title="클릭하여 이미지로 보기"
+      ></div>
+    )
   }
 
   // Recursive component to render file tree in modal
@@ -1511,6 +1574,28 @@ function App() {
             </button>
           )}
         </>
+      )}
+
+      {/* Mermaid Image Modal */}
+      {showMermaidModal && (
+        <div className="modal-overlay mermaid-modal-overlay" onClick={() => setShowMermaidModal(false)}>
+          <div className="mermaid-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="mermaid-modal-close"
+              onClick={() => setShowMermaidModal(false)}
+              title="닫기"
+            >
+              ✕
+            </button>
+            {mermaidImageUrl && (
+              <img
+                src={mermaidImageUrl}
+                alt="Mermaid Diagram"
+                className="mermaid-modal-image"
+              />
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
