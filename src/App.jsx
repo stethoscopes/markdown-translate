@@ -797,20 +797,32 @@ function App() {
         rect.setAttribute('fill', 'white')
         clonedSvg.insertBefore(rect, clonedSvg.firstChild)
 
-        // Add style element to override light-colored text
+        // Add style element to override light-colored text for white background
         const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
         style.textContent = `
+          /* Override all light-colored text from dark theme */
+          text,
+          tspan,
           .label text,
           .label span,
+          .nodeLabel,
+          .edgeLabel,
+          .cluster-label text {
+            fill: #1a1a1a !important;
+            color: #1a1a1a !important;
+          }
+
+          /* Keep stroke colors but ensure visibility */
           text[fill="#ccc"],
           text[fill="#cccccc"],
-          text[fill="rgb(204, 204, 204)"],
+          text[fill="#999"],
+          text[fill="#aaa"],
           [style*="fill: #ccc"],
           [style*="color: #ccc"],
           [style*="fill:#ccc"],
           [style*="color:#ccc"] {
-            fill: #333 !important;
-            color: #333 !important;
+            fill: #1a1a1a !important;
+            color: #1a1a1a !important;
           }
         `
         clonedSvg.insertBefore(style, clonedSvg.firstChild)
