@@ -250,13 +250,39 @@ function App() {
     setExpandedFolders(new Set())
   }
 
-  const refreshFileList = () => {
-    // Trigger folder input to re-select files
-    if (fileTree && folderInputRef.current) {
-      folderInputRef.current.click()
-    } else if (fileInputRef.current) {
-      fileInputRef.current.click()
+  const refreshFileList = async () => {
+    // Re-process existing files instead of asking for folder selection again
+    const currentFiles = allFiles.length > 0 ? allFiles : fileList
+
+    if (currentFiles.length === 0) {
+      // No files loaded yet, trigger folder/file selection
+      if (folderInputRef.current) {
+        folderInputRef.current.click()
+      } else if (fileInputRef.current) {
+        fileInputRef.current.click()
+      }
+      return
     }
+
+    // Re-process existing files
+    if (allFiles.length > 0) {
+      // Folder mode - rebuild tree
+      const tree = buildFileTree(currentFiles)
+      setFileTree(tree)
+
+      // Update markdown file list
+      const mdFiles = currentFiles.filter(file =>
+        file.name.endsWith('.md') || file.name.endsWith('.markdown')
+      )
+      setFileList(mdFiles)
+    } else {
+      // File mode - just keep the file list
+      setFileList(currentFiles)
+    }
+
+    // Trigger cache re-check by updating a dependency
+    // The useEffect for cache checking will automatically run
+    setCachedFiles(new Set()) // Clear and let useEffect rebuild
   }
 
   // Helper functions for API key management
