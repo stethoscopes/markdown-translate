@@ -798,14 +798,36 @@ function App() {
         clonedSvg.insertBefore(rect, clonedSvg.firstChild)
 
         // Fix light-colored text that's hard to read on white background
+        const hexToRgb = (hex) => {
+          const result = /^#?([a-f\d]{1,2})([a-f\d]{1,2})([a-f\d]{1,2})$/i.exec(hex)
+          if (!result) return null
+
+          return {
+            r: parseInt(result[1].length === 1 ? result[1] + result[1] : result[1], 16),
+            g: parseInt(result[2].length === 1 ? result[2] + result[2] : result[2], 16),
+            b: parseInt(result[3].length === 1 ? result[3] + result[3] : result[3], 16)
+          }
+        }
+
         const isLightColor = (color) => {
           if (!color || color === 'none') return false
 
-          // Convert color to RGB
-          const rgb = color.match(/\d+/g)
-          if (!rgb || rgb.length < 3) return false
+          let r, g, b
 
-          const [r, g, b] = rgb.map(Number)
+          // Handle hex colors (#ccc, #cccccc)
+          if (color.startsWith('#')) {
+            const rgb = hexToRgb(color)
+            if (!rgb) return false
+            r = rgb.r
+            g = rgb.g
+            b = rgb.b
+          } else {
+            // Handle rgb() colors
+            const rgb = color.match(/\d+/g)
+            if (!rgb || rgb.length < 3) return false
+            [r, g, b] = rgb.map(Number)
+          }
+
           // Calculate brightness (0-255)
           const brightness = (r * 299 + g * 587 + b * 114) / 1000
 
@@ -813,13 +835,31 @@ function App() {
           return brightness > 160
         }
 
-        const textElements = clonedSvg.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel')
+        const textElements = clonedSvg.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel, .label text, .label span')
         textElements.forEach(el => {
-          const fill = el.getAttribute('fill') || window.getComputedStyle(el).fill
+          // Check all possible color sources
+          const styleFill = el.style.fill
+          const styleColor = el.style.color
+          const attrFill = el.getAttribute('fill')
 
-          if (isLightColor(fill)) {
+          // Check and fix each color source
+          if (styleFill && isLightColor(styleFill)) {
             el.style.fill = 'black'
+          }
+          if (styleColor && isLightColor(styleColor)) {
+            el.style.color = 'black'
+          }
+          if (attrFill && isLightColor(attrFill)) {
             el.setAttribute('fill', 'black')
+          }
+
+          // If no explicit color set but still light, set to black
+          if (!styleFill && !styleColor && !attrFill) {
+            const computedFill = window.getComputedStyle(el).fill
+            if (isLightColor(computedFill)) {
+              el.style.fill = 'black'
+              el.style.color = 'black'
+            }
           }
         })
 
