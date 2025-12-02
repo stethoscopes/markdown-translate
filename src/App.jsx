@@ -791,6 +791,14 @@ function App() {
         rect.setAttribute('fill', 'white')
         clonedSvg.insertBefore(rect, clonedSvg.firstChild)
 
+        // Set all text colors to black for better readability on white background
+        const textElements = clonedSvg.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel')
+        textElements.forEach(el => {
+          el.style.fill = 'black'
+          el.style.color = 'black'
+          el.setAttribute('fill', 'black')
+        })
+
         // Set viewBox with padding
         clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`)
         clonedSvg.setAttribute('width', bbox.width + padding * 2)
