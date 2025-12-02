@@ -544,14 +544,15 @@
   justify-content: center;
   align-items: center;
   overflow-x: auto;
-  max-width: none;
+  max-width: none !important;
   width: fit-content;
-  min-width: 100%;
+  min-width: 1600px;
 }
 
 .markdown-content .mermaid svg {
-  max-width: none;
+  max-width: none !important;
   height: auto;
+  min-width: 1600px;
 }
 
 /* Scrollbar Styles */
