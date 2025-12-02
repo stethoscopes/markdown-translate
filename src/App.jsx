@@ -139,6 +139,12 @@ function App() {
       const cached = new Set()
 
       for (const file of filesToCheck) {
+        // Skip non-markdown files
+        const fileName = file.name
+        if (!fileName.endsWith('.md')) {
+          continue
+        }
+
         try {
           const text = await file.text()
           const path = file.webkitRelativePath || file.name
